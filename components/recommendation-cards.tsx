@@ -1,5 +1,5 @@
 "use client"
-
+import * as React from "react"
 import { Sun, Umbrella, Wind, Activity } from "lucide-react"
 
 export function RecommendationCards({ isRTL, temp, humidity, precip }: { isRTL: boolean; temp: number; humidity: number; precip: number }) {

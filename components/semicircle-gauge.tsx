@@ -1,5 +1,5 @@
 "use client"
-
+import * as React from "react"
 import { motion } from "framer-motion"
 
 export function SemicircleGauge({ value, label }: { value: number; label?: string }) {
