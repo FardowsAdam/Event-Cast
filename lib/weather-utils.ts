@@ -1,5 +1,102 @@
 import type { WeatherData, HealthIndexData } from "./types"
 
+// AI Prediction Configuration
+const AI_API_BASE_URL = process.env.NEXT_PUBLIC_AI_API_URL || "http://localhost:8000"
+
+interface AIPredictionResponse {
+  temperature: number
+  humidity: number
+  rain_probability: number
+  confidence: {
+    temperature: number
+    humidity: number
+    rain: number
+    overall: number
+  }
+  condition: string
+  condition_ar: string
+  feels_like: number
+  wind_speed: number
+  uv_index: number
+  precipitation: number
+  is_ai_prediction: boolean
+}
+
+async function getAIPrediction(lat: number, lon: number, date: Date): Promise<WeatherData | null> {
+  try {
+    // First, get current weather data to feed to the AI model
+    const currentWeatherData = await getCurrentWeatherForAI(lat, lon)
+    if (!currentWeatherData) {
+      throw new Error('Could not get current weather data for AI prediction')
+    }
+
+    // Make request to AI prediction API
+    const response = await fetch(`${AI_API_BASE_URL}/predict-weather`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        lat,
+        lon,
+        current_weather: currentWeatherData,
+      }),
+    })
+
+    if (!response.ok) {
+      throw new Error(`AI API responded with status: ${response.status}`)
+    }
+
+    const prediction: AIPredictionResponse = await response.json()
+
+    return {
+      temperature: Math.round(prediction.temperature),
+      feelsLike: Math.round(prediction.feels_like),
+      condition: prediction.condition,
+      conditionAr: prediction.condition_ar,
+      humidity: Math.round(prediction.humidity),
+      windSpeed: Math.round(prediction.wind_speed),
+      uvIndex: Math.round(prediction.uv_index),
+      precipitation: Math.round(prediction.precipitation),
+      isAiPrediction: true,
+      confidence: prediction.confidence,
+    }
+  } catch (error) {
+    console.error('AI prediction error:', error)
+    return null
+  }
+}
+
+async function getCurrentWeatherForAI(lat: number, lon: number): Promise<any> {
+  try {
+    // Try to get recent NASA data first
+    const today = new Date()
+    const nasaData = await fetchNASAWeatherData(lat, lon, today)
+    if (nasaData) {
+      return {
+        temperature: nasaData.temperature,
+        humidity: nasaData.humidity,
+        precipitation: nasaData.precipitation,
+        wind_speed: nasaData.windSpeed / 3.6, // Convert km/h back to m/s
+        uv_index: nasaData.uvIndex,
+      }
+    }
+
+    // Fallback to mock current weather
+    const mockData = generateMockWeatherData(lat, lon, today)
+    return {
+      temperature: mockData.temperature,
+      humidity: mockData.humidity,
+      precipitation: mockData.precipitation,
+      wind_speed: mockData.windSpeed / 3.6,
+      uv_index: mockData.uvIndex,
+    }
+  } catch (error) {
+    console.error('Error getting current weather for AI:', error)
+    return null
+  }
+}
+
 export async function getWeatherData(lat: number, lon: number, date: Date): Promise<WeatherData> {
   const today = new Date()
   today.setHours(0, 0, 0, 0)
@@ -7,8 +104,17 @@ export async function getWeatherData(lat: number, lon: number, date: Date): Prom
   selectedDate.setHours(0, 0, 0, 0)
   const isFutureDate = selectedDate > today
 
-  // For future dates, use forecast data (mock)
+  // For future dates, use AI prediction if available, otherwise fallback to mock
   if (isFutureDate) {
+    try {
+      const aiPrediction = await getAIPrediction(lat, lon, date)
+      if (aiPrediction) {
+        return aiPrediction
+      }
+    } catch (error) {
+      console.warn('AI prediction failed, using fallback:', error)
+    }
+    // Fallback to mock forecast if AI fails
     return generateForecastData(lat, lon, date)
   }
 

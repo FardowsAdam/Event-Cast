@@ -9,6 +9,13 @@ export interface WeatherData {
   windSpeed: number
   uvIndex: number
   precipitation: number
+  isAiPrediction?: boolean
+  confidence?: {
+    temperature: number
+    humidity: number
+    rain: number
+    overall: number
+  }
 }
 
 export interface HealthIndexData {
