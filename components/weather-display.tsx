@@ -1,5 +1,9 @@
 "use client"
 
+import { Droplets, Wind, Thermometer, Sun } from "lucide-react"
+import { Badge } from "@/components/ui/badge"
+import { AnimatedWeatherIcon } from "@/components/animated-weather-icon"
+import { motion } from "framer-motion"
 import { motion } from "framer-motion"
 import { Droplets, Wind, Thermometer, Sun, Brain, Satellite } from "lucide-react"
 import { Badge } from "@/components/ui/badge"
@@ -48,6 +52,15 @@ export function WeatherDisplay({ weather, isRTL, date }: WeatherDisplayProps) {
   ].filter(tip => tip.condition) // only show relevant tips
 
   return (
+    <div className="space-y-4">
+      <div className="text-center text-sm text-muted-foreground pb-2">
+        {isFutureDate ? (
+          <span>
+            {isRTL ? "توقعات الطقس" : "Weather Forecast"}
+            {weather.source === "ai" && weather.predictionConfidence != null && (
+              <span className="ml-2 text-primary">· {Math.round((weather.predictionConfidence || 0.6) * 100)}%</span>
+            )}
+          </span>
     <motion.div 
       className="space-y-4"
       initial={{ opacity: 0, y: 20 }}
@@ -96,8 +109,20 @@ export function WeatherDisplay({ weather, isRTL, date }: WeatherDisplayProps) {
       )}
 
       {/* Temperature - Large Display */}
-      <div className="flex items-center justify-center py-6">
+      <motion.div initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.4 }} className="flex flex-col items-center justify-center py-6 gap-3">
+        <AnimatedWeatherIcon condition={isRTL ? weather.conditionAr : weather.condition} />
         <div className="text-center">
+          <div className="text-6xl font-bold text-foreground">
+            {weather.temperature}°
+          </div>
+          <div className="text-xl text-muted-foreground mt-2">
+            {isRTL ? weather.conditionAr : weather.condition}
+          </div>
+          {weather.source === "ai" && (
+            <div className="mt-3 flex items-center justify-center">
+              <Badge variant="secondary">{isRTL ? "مدعوم بالذكاء الاصطناعي" : "Powered by AI Forecast"}</Badge>
+            </div>
+          )}
           <motion.div 
             className="text-6xl font-bold text-foreground"
             initial={{ scale: 0.8, opacity: 0 }}
@@ -115,7 +140,7 @@ export function WeatherDisplay({ weather, isRTL, date }: WeatherDisplayProps) {
             {isRTL ? weather.conditionAr : weather.condition}
           </motion.div>
         </div>
-      </div>
+      </motion.div>
 
       {/* Weather Details Grid */}
       <div className="grid grid-cols-2 gap-4">
@@ -180,6 +205,7 @@ export function WeatherDisplay({ weather, isRTL, date }: WeatherDisplayProps) {
 
       {/* Health Tips */}
       {healthTips.length > 0 && (
+        <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ duration: 0.4 }} className="space-y-2 pt-4">
         <motion.div 
           className="space-y-2 pt-4"
           initial={{ y: 20, opacity: 0 }}

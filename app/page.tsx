@@ -22,10 +22,19 @@ import { PredictionConfidenceMeter } from "@/components/prediction-confidence-me
 import { WeatherTrendsChart } from "@/components/weather-trends-chart"
 import { WeatherDataSourceToggle } from "@/components/weather-data-source-toggle"
 import { getWeatherData, calculateHealthIndex } from "@/lib/weather-utils"
+import { useWeatherPrediction } from "@/hooks/useWeatherPrediction"
+import { useForecast } from "@/hooks/useForecast"
+import type { ForecastMode } from "@/lib/forecast-api"
+import { ForecastModeSelector } from "@/components/forecast-mode-selector"
+import { Badge } from "@/components/ui/badge"
 import { generateHealthAlerts } from "@/lib/health-alerts"
+import { PredictionConfidence } from "@/components/prediction-confidence"
+import { SemicircleGauge } from "@/components/semicircle-gauge"
 import { getUserProfile, logoutUser } from "@/lib/user-storage"
 import type { WeatherData, HealthIndexData, UserProfile } from "@/lib/types"
 import { Calendar, MapPin, Sparkles, Search, Lightbulb } from "lucide-react"
+import { PredictionChart } from "@/components/prediction-chart"
+import { RecommendationCards } from "@/components/recommendation-cards"
 
 export default function Home() {
   // State management for app data
@@ -46,6 +55,7 @@ export default function Home() {
   const [locationError, setLocationError] = useState<string | null>(null)
   const [healthAlerts, setHealthAlerts] = useState<string[]>([])
   const [showMapModal, setShowMapModal] = useState(false)
+  const [forecastMode, setForecastMode] = useState<ForecastMode>("short_term")
   const [useAIPredictions, setUseAIPredictions] = useState(true)
 
   useEffect(() => {
@@ -215,17 +225,14 @@ export default function Home() {
     }
   }, [weather, user, isRTL])
 
+  const wp = useWeatherPrediction({ lat: location?.lat, lon: location?.lon, date: selectedDate, useAI: true })
+  const unified = useForecast({ lat: location?.lat, lon: location?.lon, date: selectedDate, mode: forecastMode, range: "month" })
   useEffect(() => {
-    if (location) {
-      const fetchWeather = async () => {
-        const weatherData = await getWeatherData(location.lat, location.lon, selectedDate)
-        setWeather(weatherData)
-        const health = calculateHealthIndex(weatherData, eventType)
-        setHealthIndex(health)
-      }
-      fetchWeather()
+    if (wp.data) {
+      setWeather(wp.data)
+      setHealthIndex(calculateHealthIndex(wp.data, eventType))
     }
-  }, [selectedDate, eventType, location, isRTL])
+  }, [wp.data, eventType])
 
   useEffect(() => {
     if (weather && location) {
@@ -357,6 +364,10 @@ export default function Home() {
                 <h2 className="text-xl font-semibold">{isRTL ? "تاريخ الفعالية" : "Event Date"}</h2>
               </div>
               <DatePicker selectedDate={selectedDate} onDateChange={setSelectedDate} isRTL={isRTL} />
+              <div className="mt-4 flex items-center justify-between">
+                <ForecastModeSelector value={forecastMode} onChange={setForecastMode} isRTL={isRTL} />
+                <Badge variant="secondary">{isRTL ? "مدعوم بالذكاء الاصطناعي" : "Powered by AI Forecast"}</Badge>
+              </div>
             </Card>
 
             {/* Event Type Picker Card */}
@@ -373,6 +384,11 @@ export default function Home() {
               <Card className="p-6">
                 <h2 className="text-xl font-semibold mb-4">{isRTL ? "حالة الطقس" : "Weather Conditions"}</h2>
                 <WeatherDisplay weather={weather} isRTL={isRTL} date={selectedDate} />
+                {weather.source === "ai" && (
+                  <div className="mt-4">
+                    <PredictionConfidence value={weather.predictionConfidence ?? 0.6} isRTL={isRTL} />
+                  </div>
+                )}
               </Card>
             )}
 
@@ -395,6 +411,30 @@ export default function Home() {
               <Card className="p-6">
                 <h2 className="text-xl font-semibold mb-4">{isRTL ? "مؤشر الصحة الجوية" : "Health Weather Index"}</h2>
                 <HealthIndex data={healthIndex} isRTL={isRTL} />
+              </Card>
+            )}
+
+            {/* Prediction Chart (Unified) */}
+            {unified.data && (
+              <Card className="p-6">
+                <h2 className="text-xl font-semibold mb-4">
+                  {forecastMode === "short_term" ? (isRTL ? "التوقعات القصيرة (٣ أيام)" : "Short-term (Next 3 Days)") : (isRTL ? "التوقعات الموسمية" : "Seasonal Forecast")}
+                </h2>
+                <PredictionChart
+                  isRTL={isRTL}
+                  data={unified.data.predicted_temperature.map((t, i) => ({ label: `${i + 1}`, temp: t, prec: unified.data?.predicted_precipitation?.[i] ?? 0 }))}
+                />
+                <div className="mt-6">
+                  <SemicircleGauge value={unified.data.confidence} label={isRTL ? "الثقة" : "Confidence"} />
+                </div>
+                <div className="mt-6">
+                  <RecommendationCards
+                    isRTL={isRTL}
+                    temp={unified.data.predicted_temperature[0] ?? weather?.temperature ?? 0}
+                    humidity={unified.data.predicted_humidity[0] ?? weather?.humidity ?? 0}
+                    precip={unified.data.predicted_precipitation[0] ?? weather?.precipitation ?? 0}
+                  />
+                </div>
               </Card>
             )}
 

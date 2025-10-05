@@ -9,6 +9,10 @@ export interface WeatherData {
   windSpeed: number
   uvIndex: number
   precipitation: number
+  // Optional fields when using AI predictions
+  predictionConfidence?: number
+  rainProbability?: number
+  source?: "nasa" | "ai" | "mock"
   isAiPrediction?: boolean
   confidence?: {
     temperature: number
