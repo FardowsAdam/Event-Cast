@@ -1,6 +1,7 @@
 'use client'
 
 import * as React from 'react'
+import { motion } from 'framer-motion'
 import * as RechartsPrimitive from 'recharts'
 
 import { cn } from '@/lib/utils'
@@ -62,7 +63,9 @@ function ChartContainer({
       >
         <ChartStyle id={chartId} config={config} />
         <RechartsPrimitive.ResponsiveContainer>
-          {children}
+          <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }}>
+            {children}
+          </motion.div>
         </RechartsPrimitive.ResponsiveContainer>
       </div>
     </ChartContext.Provider>

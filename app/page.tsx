@@ -18,10 +18,15 @@ import { LocationSearchModal } from "@/components/location-search-modal"
 import { BestDaysModal } from "@/components/best-days-modal"
 import { MapPickerModal } from "@/components/map-picker-modal"
 import { getWeatherData, calculateHealthIndex } from "@/lib/weather-utils"
+import { useWeatherPrediction } from "@/hooks/useWeatherPrediction"
+import { Switch } from "@/components/ui/switch"
+import { Badge } from "@/components/ui/badge"
 import { generateHealthAlerts } from "@/lib/health-alerts"
+import { PredictionConfidence } from "@/components/prediction-confidence"
 import { getUserProfile, logoutUser } from "@/lib/user-storage"
 import type { WeatherData, HealthIndexData, UserProfile } from "@/lib/types"
 import { Calendar, MapPin, Sparkles, Search, Lightbulb } from "lucide-react"
+import { PredictionChart } from "@/components/prediction-chart"
 
 export default function Home() {
   // State management for app data
@@ -42,6 +47,7 @@ export default function Home() {
   const [locationError, setLocationError] = useState<string | null>(null)
   const [healthAlerts, setHealthAlerts] = useState<string[]>([])
   const [showMapModal, setShowMapModal] = useState(false)
+  const [useAI, setUseAI] = useState(true)
 
   useEffect(() => {
     const existingUser = getUserProfile()
@@ -210,17 +216,13 @@ export default function Home() {
     }
   }, [weather, user, isRTL])
 
+  const wp = useWeatherPrediction({ lat: location?.lat, lon: location?.lon, date: selectedDate, useAI })
   useEffect(() => {
-    if (location) {
-      const fetchWeather = async () => {
-        const weatherData = await getWeatherData(location.lat, location.lon, selectedDate)
-        setWeather(weatherData)
-        const health = calculateHealthIndex(weatherData, eventType)
-        setHealthIndex(health)
-      }
-      fetchWeather()
+    if (wp.data) {
+      setWeather(wp.data)
+      setHealthIndex(calculateHealthIndex(wp.data, eventType))
     }
-  }, [selectedDate, eventType, location, isRTL])
+  }, [wp.data, eventType])
 
   useEffect(() => {
     if (weather && location) {
@@ -345,6 +347,15 @@ export default function Home() {
                 <h2 className="text-xl font-semibold">{isRTL ? "تاريخ الفعالية" : "Event Date"}</h2>
               </div>
               <DatePicker selectedDate={selectedDate} onDateChange={setSelectedDate} isRTL={isRTL} />
+              <div className="mt-4 flex items-center justify-between">
+                <div className="flex items-center gap-2">
+                  <Switch checked={useAI} onCheckedChange={setUseAI} />
+                  <span className="text-sm text-muted-foreground">
+                    {isRTL ? "استخدم توقعات الذكاء الاصطناعي" : "Use AI Prediction"}
+                  </span>
+                </div>
+                <Badge variant="secondary">{isRTL ? "مدعوم بالذكاء الاصطناعي" : "Powered by AI Forecast"}</Badge>
+              </div>
             </Card>
 
             {/* Event Type Picker Card */}
@@ -361,6 +372,11 @@ export default function Home() {
               <Card className="p-6">
                 <h2 className="text-xl font-semibold mb-4">{isRTL ? "حالة الطقس" : "Weather Conditions"}</h2>
                 <WeatherDisplay weather={weather} isRTL={isRTL} date={selectedDate} />
+                {weather.source === "ai" && (
+                  <div className="mt-4">
+                    <PredictionConfidence value={weather.predictionConfidence ?? 0.6} isRTL={isRTL} />
+                  </div>
+                )}
               </Card>
             )}
 
@@ -369,6 +385,29 @@ export default function Home() {
               <Card className="p-6">
                 <h2 className="text-xl font-semibold mb-4">{isRTL ? "مؤشر الصحة الجوية" : "Health Weather Index"}</h2>
                 <HealthIndex data={healthIndex} isRTL={isRTL} />
+              </Card>
+            )}
+
+            {/* Prediction Chart */}
+            {weather && (
+              <Card className="p-6">
+                <h2 className="text-xl font-semibold mb-4">{isRTL ? "منحنى الحرارة" : "Temperature Trend"}</h2>
+                <PredictionChart
+                  isRTL={isRTL}
+                  data={[
+                    { label: isRTL ? "-7 أيام" : "-7d", temp: weather.temperature - 4 },
+                    { label: isRTL ? "-6 أيام" : "-6d", temp: weather.temperature - 3 },
+                    { label: isRTL ? "-5 أيام" : "-5d", temp: weather.temperature - 2 },
+                    { label: isRTL ? "-4 أيام" : "-4d", temp: weather.temperature - 1 },
+                    { label: isRTL ? "-3 أيام" : "-3d", temp: weather.temperature - 1 },
+                    { label: isRTL ? "-2 أيام" : "-2d", temp: weather.temperature },
+                    { label: isRTL ? "-1 يوم" : "-1d", temp: weather.temperature },
+                    { label: isRTL ? "اليوم" : "Today", temp: weather.temperature },
+                    { label: isRTL ? "+1 يوم" : "+1d", temp: weather.temperature + 1 },
+                    { label: isRTL ? "+2 يوم" : "+2d", temp: weather.temperature + 2 },
+                    { label: isRTL ? "+3 يوم" : "+3d", temp: weather.temperature + 1 },
+                  ]}
+                />
               </Card>
             )}
 

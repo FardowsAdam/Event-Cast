@@ -7,9 +7,12 @@ export async function getWeatherData(lat: number, lon: number, date: Date): Prom
   selectedDate.setHours(0, 0, 0, 0)
   const isFutureDate = selectedDate > today
 
-  // For future dates, use forecast data (mock)
+  // For future dates, use AI prediction API instead of mock
   if (isFutureDate) {
-    return generateForecastData(lat, lon, date)
+    const ai = await fetchAIPrediction(lat, lon, selectedDate)
+    if (ai) return ai
+    // fallback to mock if AI unavailable
+    return generateMockWeatherData(lat, lon, date)
   }
 
   // For past/today dates, try NASA POWER API for historical data
@@ -99,12 +102,77 @@ async function fetchNASAWeatherData(lat: number, lon: number, date: Date): Promi
       windSpeed: Math.round(windSpeed * 3.6), // Convert m/s to km/h
       uvIndex: Math.round(uvIndex),
       precipitation: Math.round(precipitation),
+      source: "nasa",
     }
   } catch (error) {
     return null
   }
 }
 
+async function fetchAIPrediction(lat: number, lon: number, date: Date): Promise<WeatherData | null> {
+  try {
+    const iso = date.toISOString().split("T")[0]
+    const url = process.env.NEXT_PUBLIC_AI_API_URL || "http://localhost:8000"
+    const resp = await fetch(`${url}/predict-weather`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ lat, lon, date: iso }),
+      // Revalidate per request; avoid Next.js caching issues
+      cache: "no-store",
+    })
+    if (!resp.ok) return null
+    const data = await resp.json()
+
+    // Map AI response into WeatherData shape
+    const temperature = Math.round(data.temperature)
+    const humidity = Math.round(data.humidity)
+    const rainProb: number = typeof data.rain_probability === "number" ? data.rain_probability : 0
+    const precipitation = Math.round(rainProb * 20) // heuristic for mm estimate
+
+    let condition = "Clear"
+    let conditionAr = "صافي"
+    if (rainProb > 0.6) {
+      condition = "Rainy"
+      conditionAr = "ممطر"
+    } else if (rainProb > 0.3) {
+      condition = "Partly Cloudy"
+      conditionAr = "غائم جزئياً"
+    } else if (temperature > 38) {
+      condition = "Very Hot"
+      conditionAr = "حار جداً"
+    } else if (temperature > 30) {
+      condition = "Hot"
+      conditionAr = "حار"
+    } else if (temperature > 25) {
+      condition = "Warm"
+      conditionAr = "دافئ"
+    } else if (temperature > 15) {
+      condition = "Mild"
+      conditionAr = "معتدل"
+    } else {
+      condition = "Cool"
+      conditionAr = "بارد"
+    }
+
+    return {
+      temperature,
+      feelsLike: temperature + (humidity > 60 ? 2 : -1),
+      condition,
+      conditionAr,
+      humidity,
+      windSpeed: 10, // placeholder; model not predicting wind yet
+      uvIndex: Math.max(1, Math.min(11, Math.floor(temperature / 3.5))),
+      precipitation,
+      predictionConfidence: typeof data.confidence === "number" ? data.confidence : 0.6,
+      rainProbability: rainProb,
+      source: "ai",
+    }
+  } catch (e) {
+    return null
+  }
+}
+
+// Deprecated: replaced by AI prediction. Kept for potential fallback use only.
 function generateForecastData(lat: number, lon: number, date: Date): WeatherData {
   const month = date.getMonth()
   const isWinter = month >= 11 || month <= 2
@@ -168,6 +236,7 @@ function generateForecastData(lat: number, lon: number, date: Date): WeatherData
     windSpeed,
     uvIndex,
     precipitation: random > 0.85 ? Math.floor(random * 15) : 0,
+    source: "mock",
   }
 }
 
@@ -221,6 +290,7 @@ function generateMockWeatherData(lat: number, lon: number, date: Date): WeatherD
     windSpeed: 5 + Math.floor(Math.random() * 20),
     uvIndex: Math.max(1, Math.min(11, Math.floor(temp / 4))),
     precipitation: Math.random() > 0.8 ? Math.floor(Math.random() * 20) : 0,
+    source: "mock",
   }
 }
 
