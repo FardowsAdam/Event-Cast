@@ -1,5 +1,5 @@
 "use client"
-
+import * as React from "react"
 import { Progress } from "@/components/ui/progress"
 
 export function PredictionConfidence({ value, isRTL }: { value: number; isRTL: boolean }) {

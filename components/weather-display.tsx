@@ -1,5 +1,5 @@
 "use client"
-
+import * as React from "react"
 import { Droplets, Wind, Thermometer, Sun } from "lucide-react"
 import { Badge } from "@/components/ui/badge"
 import { AnimatedWeatherIcon } from "@/components/animated-weather-icon"
@@ -46,7 +46,7 @@ export function WeatherDisplay({ weather, isRTL, date }: WeatherDisplayProps) {
       tipAr: "الطقس غير مثالي للأنشطة الخارجية الطويلة",
       tipEn: "Weather not ideal for extended outdoor activities"
     }
-  ].filter(tip => tip.condition) // only show relevant tips
+  ].filter(tip => tip.condition); // only show relevant tips
 
   return (
     <div className="space-y-4">
