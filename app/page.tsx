@@ -17,6 +17,10 @@ import { HealthAlert } from "@/components/health-alert"
 import { LocationSearchModal } from "@/components/location-search-modal"
 import { BestDaysModal } from "@/components/best-days-modal"
 import { MapPickerModal } from "@/components/map-picker-modal"
+import { WeatherForecastCard } from "@/components/weather-forecast-card"
+import { PredictionConfidenceMeter } from "@/components/prediction-confidence-meter"
+import { WeatherTrendsChart } from "@/components/weather-trends-chart"
+import { WeatherDataSourceToggle } from "@/components/weather-data-source-toggle"
 import { getWeatherData, calculateHealthIndex } from "@/lib/weather-utils"
 import { useWeatherPrediction } from "@/hooks/useWeatherPrediction"
 import { useForecast } from "@/hooks/useForecast"
@@ -52,6 +56,7 @@ export default function Home() {
   const [healthAlerts, setHealthAlerts] = useState<string[]>([])
   const [showMapModal, setShowMapModal] = useState(false)
   const [forecastMode, setForecastMode] = useState<ForecastMode>("short_term")
+  const [useAIPredictions, setUseAIPredictions] = useState(true)
 
   useEffect(() => {
     const existingUser = getUserProfile()
@@ -308,6 +313,13 @@ export default function Home() {
           <div className="space-y-6">
             {healthAlerts.length > 0 && <HealthAlert alerts={healthAlerts} isRTL={isRTL} />}
 
+            {/* Weather Data Source Toggle */}
+            <WeatherDataSourceToggle
+              useAI={useAIPredictions}
+              onToggle={setUseAIPredictions}
+              isRTL={isRTL}
+            />
+
             {/* Best Days Recommendation Button */}
             {location && eventType && (
               <Button onClick={() => setShowBestDaysModal(true)} className="w-full" size="lg" variant="default">
@@ -378,6 +390,20 @@ export default function Home() {
                   </div>
                 )}
               </Card>
+            )}
+
+            {/* AI Prediction Confidence Meter */}
+            {weather && weather.isAiPrediction && (
+              <PredictionConfidenceMeter weather={weather} isRTL={isRTL} />
+            )}
+
+            {/* Weather Trends Chart */}
+            {location && (
+              <WeatherTrendsChart
+                lat={location.lat}
+                lon={location.lon}
+                isRTL={isRTL}
+              />
             )}
 
             {/* Health Index Card */}

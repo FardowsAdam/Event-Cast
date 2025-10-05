@@ -13,6 +13,13 @@ export interface WeatherData {
   predictionConfidence?: number
   rainProbability?: number
   source?: "nasa" | "ai" | "mock"
+  isAiPrediction?: boolean
+  confidence?: {
+    temperature: number
+    humidity: number
+    rain: number
+    overall: number
+  }
 }
 
 export interface HealthIndexData {
